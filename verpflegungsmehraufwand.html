@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="de">
+<head>
+	<meta charset="utf-8"/>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+	<title>Verpflegungsmehraufwand Wikimedia Deutschland e.V.</title>
+	<link rel="stylesheet" href="verpflegungsmehraufwand.css">
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+	<script src="polyfiller.js"></script>
+	<script src="tagessaetze.2015.js"></script>
+	<script src="tagessaetze.2016.js"></script>
+	<script src="tagessaetze.2017.js"></script>
+	<script src="tagessaetze.2018.js"></script>
+	<script>
+		var eintraege = 0;
+		function aktualisiereTagessatz()
+		{
+			var i8h = document.getElementById('ts8h'),
+				i24h = document.getElementById('ts24h'),
+				ipausch = document.getElementById('pausch')
+				iRZ = document.getElementById('RZ'),
+				rbd = document.getElementById('RBD').value;
+			var heute = new Date(), jahr;
+
+			if(rbd) rbd = splitDateString(rbd);
+			if(typeof rbd[1] !== 'undefined' && rbd !== null) jahr = rbd[1];
+			else jahr = heute.getFullYear();
+			i8h.textContent=ts[jahr][iRZ.value]['8h'].toFixed(2);
+			i24h.textContent=ts[jahr][iRZ.value]['24h'].toFixed(2);
+			ipausch.textContent=ts[jahr][iRZ.value]['pausch'].toFixed(2);
+			var aufstellung = document.getElementById('Aufstellung'),
+				eintraege = document.querySelectorAll('#Aufstellung fieldset'),
+				rbz = document.getElementById('RBZ'),
+				rez = document.getElementById('REZ'),
+				rbzZeit = rbz.value ? splitTimeString(rbz.value) : [ 0, 0, 0 ],
+				rezZeit = rez.value ? splitTimeString(rez.value) : [ 0, 0, 0 ];
+
+			rbzZeit = rbzZeit[1]*60 + rbzZeit[2]*1;
+			rezZeit = rezZeit[1]*60 + rezZeit[2]*1;
+			if(eintraege.length)
+			{
+				eintraege[0].querySelectorAll('span')[1].textContent = i8h.textContent;
+				eintraege[0].querySelectorAll('input')[2].onclick.apply(eintraege[0].querySelectorAll('input')[2]);
+				eintraege[eintraege.length-1].querySelectorAll('span')[1].textContent = i8h.textContent;
+				eintraege[eintraege.length-1].querySelectorAll('input')[2].onclick.apply(eintraege[eintraege.length-1].querySelectorAll('input')[2]);
+				if(eintraege.length > 2) {
+					for(var n = 1; n < eintraege.length-1; n++)
+					{
+						eintraege[n].querySelectorAll('span')[1].textContent = i24h.textContent;
+						eintraege[n].querySelectorAll('input')[0].onclick.apply(eintraege[n].querySelectorAll('input')[2]);
+					}
+				}
+			}
+			return true;
+		}
+
+		function aktualisiereSumme()
+		{
+			var rte = document.querySelectorAll('#Aufstellung fieldset'),
+				as = document.getElementById('Summe'),
+				sum=0;
+			if(rte.length>0) for(var e = 0; e < rte.length; e++) sum += parseFloat(document.getElementById('AS['+rte[e].id+']').textContent);
+			as.textContent = sum.toFixed(2);
+			return true;
+		}
+		function aktualisiereAnspruch()
+		{
+			if(this.tagName == 'INPUT')
+			{
+				var reiseTag = this.id.match(/(\d{4}-\d{2}-\d{2})/)[1],
+					tagessatz = parseFloat(document.getElementById('ts24h').textContent);
+					pausch = parseFloat(document.getElementById('pausch').textContent),
+					anspruch = parseFloat(document.getElementById('TS['+reiseTag+']').textContent);
+//				anspruch = tagessatz;
+				if(document.getElementById('FS['+reiseTag+']').checked) anspruch -= 0.2*tagessatz;
+				if(document.getElementById('MT['+reiseTag+']').checked) anspruch -= 0.4*tagessatz;
+				if(document.getElementById('AE['+reiseTag+']').checked) anspruch -= 0.4*tagessatz;
+				if(anspruch < 0) anspruch=0;
+				if(document.getElementById('P['+reiseTag+']').checked) anspruch += pausch;
+				document.getElementById('AS['+reiseTag+']').textContent = Math.sqrt(Math.pow(anspruch,2)).toFixed(2);
+				aktualisiereSumme();
+				return true;
+			}
+			return true;
+		}
+
+		function neuerIndex()
+		{
+			var aufstellung = document.getElementById('Aufstellung'),
+				eintraege = document.querySelectorAll('#Aufstellung fieldset');
+			for(var n = 0; n < eintraege.length; n++)
+			{
+				eintraege[n].querySelector('legend').textContent = n+1+'.Reisetag';
+			}
+		}
+
+		function erstelleReisetag(datum)
+		{
+			var vorlage = document.getElementById('neuerEintrag'),
+				neuerEintrag, inputs, labels, spans;
+
+			neuerEintrag = document.importNode(vorlage.content, true);
+			inputs = neuerEintrag.querySelectorAll('input');
+			labels = neuerEintrag.querySelectorAll('label');
+			spans = neuerEintrag.querySelectorAll('span');
+			spans[0].textContent = datum;
+			neuerEintrag.querySelectorAll('fieldset')[0].id = datum;
+			inputs[0].name = "AbzugFS["+datum+"]";
+			inputs[1].name = "AbzugMT["+datum+"]";
+			inputs[2].name = "AbzugAE["+datum+"]";
+			inputs[3].name = "Privat["+datum+"]";
+			spans[0].id = "RT["+datum+"]";
+			spans[1].id = "TS["+datum+"]";
+			spans[5].id = "AS["+datum+"]";
+			inputs[0].id = "FS["+datum+"]";
+			inputs[1].id = "MT["+datum+"]";
+			inputs[2].id = "AE["+datum+"]";
+			inputs[3].id = "P["+datum+"]";
+			inputs[0].onclick = aktualisiereAnspruch;
+			inputs[0].ontouch = aktualisiereAnspruch;
+			inputs[1].onclick = aktualisiereAnspruch;
+			inputs[1].ontouch = aktualisiereAnspruch;
+			inputs[2].onclick = aktualisiereAnspruch;
+			inputs[2].ontouch = aktualisiereAnspruch;
+			inputs[3].onclick = aktualisiereAnspruch;
+			inputs[3].ontouch = aktualisiereAnspruch;
+			labels[0].htmlFor = "FS["+datum+"]";
+			labels[1].htmlFor = "MT["+datum+"]";
+			labels[2].htmlFor = "AE["+datum+"]";
+			labels[3].htmlFor = "P["+datum+"]";
+			labels[0].onclick = aktualisiereAnspruch;
+			labels[0].ontouch = aktualisiereAnspruch;
+			labels[1].onclick = aktualisiereAnspruch;
+			labels[1].ontouch = aktualisiereAnspruch;
+			labels[2].onclick = aktualisiereAnspruch;
+			labels[2].ontouch = aktualisiereAnspruch;
+			labels[3].onclick = aktualisiereAnspruch;
+			labels[3].ontouch = aktualisiereAnspruch;
+			return neuerEintrag;
+		}
+
+		function aktualisiereReisebeginn()
+		{
+			var rbd = document.getElementById('RBD'), //ReiseBeginnDatum
+				red = document.getElementById("RED"), //ReiseEndeDatum
+				eintraege = document.querySelectorAll('#Aufstellung fieldset'),
+				aufstellung = document.getElementById('Aufstellung');
+			if(eintraege.length > 0) {
+				var d, reiseTag;
+
+				d = rbd.value;
+				for(var e = 0; e < eintraege.length; e++)
+				{
+					if(d > eintraege[e].id)
+					{
+						aufstellung.removeChild(eintraege[e]);
+					}
+					else{break;};
+				}
+			}
+			aktualisiereTagessatzMenue(splitDateString(rbd.value)[1]);
+			aktualisiereAufstellung(rbd.value, red.value);
+		}
+
+		function aktualisiereReiseende()
+		{
+			var rbd = document.getElementById('RBD'), //ReiseBeginnDatum
+				red = document.getElementById("RED"), //ReiseEndeDatum
+				eintraege = document.querySelectorAll('#Aufstellung fieldset'),
+				aufstellung = document.getElementById('Aufstellung');
+			if(eintraege.length > 0) {
+				var d, reiseTag;
+
+				d = red.value;
+				for(var e = eintraege.length-1; e >= 0; e--)
+				{
+					if(d < eintraege[e].id)
+					{
+						aufstellung.removeChild(eintraege[e]);
+					}
+					else{break;};
+				}
+			}
+			aktualisiereAufstellung(rbd.value, red.value);
+		}
+
+		function aktualisiereAufstellung(beginn, ende)
+		{
+			var eintraege = document.querySelectorAll('#Aufstellung fieldset'),
+				aufstellung = document.getElementById('Aufstellung');
+			if("" == beginn)
+			{
+				beginn = ende;
+			}
+			if("" == ende)
+			{
+				ende = beginn;
+			}
+			var beg = splitDateString(beginn),
+				end = splitDateString(ende),
+				einTag = 24*60*60*1000,
+				begDatum, endDatum, reiseDauer;
+			begDatum = new Date(beg[1], beg[2]-1, beg[3]);
+			endDatum = new Date(end[1], end[2]-1, end[3]);
+			reiseDauer = Math.round((endDatum.getTime() - begDatum.getTime())/einTag);
+
+			if(eintraege.length)
+			{
+				var ersterEintrag = splitDateString(eintraege[0].id),
+					erstesDatum = new Date(ersterEintrag[1], ersterEintrag[2]-1, ersterEintrag[3]),
+					letzterEintrag = splitDateString(eintraege[eintraege.length-1].id),
+					letztesDatum = new Date(letzterEintrag[1], letzterEintrag[2]-1, letzterEintrag[3]);
+			}
+			else
+			{
+				var erstesDatum = new Date(0),
+					letztesDatum = new Date(0);
+			}
+			for(var n = 0; n <= reiseDauer; n++)
+			{
+				var d, reiseTag, ersterEintrag;
+
+				reiseTag = new Date(begDatum.getTime()+n*einTag);
+				d = reiseTag.getFullYear().toString()+'-'
+				d += ((reiseTag.getMonth()+1) < 10) ? '0' : '';
+				d += (reiseTag.getMonth()+1).toString()+'-';
+				d += (reiseTag.getDate() < 10) ? '0' : '';
+				d += reiseTag.getDate().toString();
+
+				if(reiseTag.getTime() < erstesDatum.getTime())
+				{
+					aufstellung.insertBefore(erstelleReisetag(d), eintraege[0]);
+				}
+				if(reiseTag.getTime() > letztesDatum.getTime())
+				{
+					aufstellung.appendChild(erstelleReisetag(d));
+				}
+			}
+
+			neuerIndex();
+			aktualisiereTagessatz();
+			return true;
+		}
+
+		function splitDateString(date) { return date.match(/(\d{4})-(\d{2})-(\d{2})/); }
+		function splitTimeString(time) { return time.match(/(\d{2}):(\d{2})/); }
+
+		function deactivateAOSO() { document.getElementById('AOSO_text').disabled = true; }
+		function activateAOSO() { document.getElementById('AOSO_text').disabled = false; }
+		function deactivateRESO() { document.getElementById('RESO_text').disabled = true; }
+		function activateRESO() { document.getElementById('RESO_text').disabled = false; }
+
+		function init() {
+			document.getElementById("RBD").onchange=aktualisiereReisebeginn;
+			document.getElementById("RED").onchange=aktualisiereReiseende;
+			document.getElementById("RBZ").onchange=aktualisiereTagessatz;
+			document.getElementById("REZ").onchange=aktualisiereTagessatz;
+			document.getElementById("RZ").addEventListener('change',aktualisiereTagessatz);
+
+			document.getElementById("AOWO").addEventListener('click', deactivateAOSO, true);
+			document.getElementById("AOAS").addEventListener('click', deactivateAOSO, true);
+			document.getElementById("AOSO").addEventListener('click', activateAOSO, true);
+			document.getElementById("AOWO").addEventListener('touchstart', deactivateAOSO, true);
+			document.getElementById("AOAS").addEventListener('touchstart', deactivateAOSO, true);
+			document.getElementById("AOSO").addEventListener('touchstart', activateAOSO, true);
+
+			document.getElementById("REAO").addEventListener('click', deactivateRESO, true);
+			document.getElementById("RESO").addEventListener('click', activateRESO, true);
+			document.getElementById("REAO").addEventListener('touchstart', deactivateRESO, true);
+			document.getElementById("RESO").addEventListener('touchstart', activateRESO, true);
+
+			document.getElementById("print_top").addEventListener('click', function() { window.print(); }, true);
+			document.getElementById("print_bottom").addEventListener('click', function() { window.print(); }, true);
+		}
+
+		function vergleicheWerte(a, b)
+		{
+			if(typeof a === undefined) return false;
+			if(typeof b === undefined) return false;
+			var regex = /^(.*?), (.*)/,
+				generic = 'im Übrigen';
+			if(a.match(regex))
+			{
+				var left = a.match(regex)[2];
+					left_pre = a.match(regex)[1];
+			}
+			else
+			{
+				var left = a,
+					left_pre = 'Welt';
+			}
+			if(b.match(regex))
+			{
+				var right = b.match(regex)[2],
+					right_pre = b.match(regex)[1];
+			}
+			else
+			{
+				var right = b;
+					right_pre = 'Welt';
+			}
+			if(left === right)
+			{
+				if(left_pre === right_pre) return true;
+				else
+				{
+					switch(true)
+					{
+						case (left_pre.length > right_pre.length):
+							if(left_pre.indexOf(right_pre) > -1)
+							{
+								return true;
+							}
+							break;
+						case (left_pre.length === right_pre.length):
+							if(left_pre === right_pre)
+							{
+								return true;
+							}
+							break;
+						case (left_pre.length < right_pre.length):
+							if(right_pre.indexOf(left_pre) > -1)
+							{
+								return true;
+							}
+							break;
+					}
+				}
+			}
+			if( (left_pre !== 'Welt' && right_pre !== 'Welt') && ( (left_pre.indexOf(right_pre) > -1) || (right_pre.indexOf(left_pre) > -1) ) )
+			{
+				left = left.match(/^(.*?) (.*)/) ? left.match(/^(.*?) (.*)/)[1] : left;
+				right = right.match(/^(.*?) (.*)/) ? right.match(/^(.*?) (.*)/)[1] : right;
+				switch(true)
+					{
+						case (left.length > right.length):
+							if(left.indexOf(right) > -1)
+							{
+								return true;
+							}
+							break;
+						case (left.length === right.length):
+							if(left === right)
+							{
+								return true;
+							}
+							break;
+						case (left.length < right.length):
+							if(right.indexOf(left) > -1)
+							{
+								return true;
+							}
+							break;
+					}
+			}
+			return false;
+		}
+
+		function aktualisiereTagessatzMenue(j)
+		{
+			if(j === undefined)
+			{
+				var jahr = max_ts;
+			}
+			else
+			{
+				var jahr = j;
+			}
+			if(menueJahr === jahr) return false;
+			var vorlage = document.getElementById('neuerTagessatz'),
+				anker = document.getElementById('RZ');
+			if(anker.querySelectorAll('option').length > 0)
+			{
+				selected = anker.querySelectorAll('option')[anker.selectedIndex].textContent;
+				while(anker.firstChild) {
+					anker.removeChild(anker.firstChild);
+				}
+			}
+			for(var key in ts[jahr])
+			{
+				if(!ts[jahr].hasOwnProperty(key) || key === 'length' ) continue;
+				var neuerTagessatz, option;
+				neuerTagessatz = document.importNode(vorlage.content, true);
+				option = neuerTagessatz.querySelectorAll('option');
+				option[0].textContent = key;
+				anker.appendChild(neuerTagessatz);
+			}
+			anker.appendChild(neuerTagessatz);
+			var options = anker.querySelectorAll('option'), o;
+			Index: for(var i = 0; i < options.length; i++)
+			{
+				o = options[i].textContent;
+				if(vergleicheWerte(o, selected)) anker.selectedIndex = i;
+			}
+			menueJahr = jahr;
+			return true;
+		}
+
+		function init2()
+		{
+			webshims.setOptions('forms-ext', {types: 'date'});
+			webshims.polyfill('forms forms-ext');
+
+			var vorlage = document.getElementById('neuerTagessatz'),
+				gruppe = document.getElementById('neuesTagessatzJahr'),
+				anker = document.getElementById('RZ');
+			aktualisiereTagessatzMenue();
+			aktualisiereTagessatz();
+		}
+		var menueJahr, selected = "Deutschland";
+		window.addEventListener('DOMContentLoaded',init);
+		window.addEventListener('load',init2);
+
+	</script>
+</head>
+
+<body>
+	<header>
+		<img style="float: right;" src="logo_web.png" alt="logo">
+		<h1>Anlage Verpflegungsmehraufwand</h1>
+		<p>Gemäß Abschnitt 4 und 5 (<a href="https://www.wikimedia.de/wiki/Geschäftsordnung#Anhang_Verpflegungsmehraufwand">Reisekostenordnung</a>) der Geschäftsordnung in Verbindung mit §4 Abs. 5 Nr. 5 Einkommensteuergesetz</p>
+	</header>
+	<div id="printcontainer_top"><input type="button" value="🖶  Anlage Verpflegungsmehraufwand drucken" id="print_top"></div>
+	<fieldset>
+		<legend id="allgReisedaten">Bitte fülle die allgemeinen Reisedaten aus</legend>
+		<fieldset><legend><label for="Name_text">Reisender</label></legend><input type="text" id="Name_text" name="Name" placeholder="Name des Reisenden" size="100%"></fieldset>
+		<fieldset><legend><label for="Reiseanlass_text">Reiseanlass</label></legend><input type="text" id="Reiseanlass_text" name="Reiseanlass" placeholder="Anlass der Reise (Schulung, Event o.Ä.)" size="100%"></fieldset>
+		<fieldset><legend>Reisebeginn</legend>
+		<input required type="date" size="12" id="RBD" name="ReiseBeginnDatum">um<input type="time" size="10" id="RBZ" name="ReiseBeginnZeit">Uhr
+		</fieldset>
+		<fieldset><legend>Abfahrtsort</legend>
+		<input required type="radio" id="AOWO" name="AbfahrtsOrt" value="Wohnort"><label for="AOWO">Wohnort</label>
+		<input required type="radio" id="AOAS" name="AbfahrtsOrt" value="Arbeitsstaette"><label for="AOAS">Arbeitsstätte</label>
+		<input required type="radio" id="AOSO" name="AbfahrtsOrt" value="SonstigerOrt"><label for="AOSO">sonstiger Ort</label>
+		<input type="text" id="AOSO_text" name="SonstigerOrt" placeholder="Anschrift aufführen" size="100%" disabled>
+		</fieldset>
+		<fieldset><legend><abbr title="Bei Reisen ins Ausland können andere Tagessätze gelten.">Zielland</abbr></legend>
+		<select id="RZ" name="ReiseZiel" size="1">
+		</select>
+		</fieldset>
+		<fieldset><legend>Reiseende</legend>
+		<input required type="date" size="12" id="RED" name="ReiseEndeDatum">um<input type="time" size="10" id="REZ" name="ReiseEndeZeit">Uhr
+		</fieldset>
+		<fieldset><legend>Ort des Reiseendes</legend>
+		<input required type="radio" id="REAO" name="ReiseEndeOrt" value="AbfahrtsOrt"><label for="REAO">wie Abfahrtsort</label>
+		<input required type="radio" id="RESO" name="ReiseEndeOrt" value="AndererOrt"><label for="RESO">anderer Ort</label>
+		<input type="text" id="RESO_text" name="AndererOrt" placeholder="Anschrift aufführen" size="100%" disabled>
+		</fieldset>
+		<div class="resultbox">
+		<p><abbr title="Der volle Tagessatz wird für jeden Tag zwischen Anreisetag und Abreisetag angesetzt.">voll: <span class="resultvalue geld" id="ts24h" style="width:5em;"></span></abbr>
+		 — <abbr title="Der verminderte Tagessatz gilt für Anreisetag und Abreisetag.">vermindert: <span class="resultvalue geld" id="ts8h" style="width:5em;"></span></abbr>
+		 — <abbr title="Kann die reisende Person privat übernachten, besteht daraus ein Anspruch in Höhe dieses Pauschbetrages.">Pauschbetrag Übernachtung: <span class="resultvalue geld" id="pausch" style="width:5em;"></span></abbr>
+		 </p>
+		 </div>
+<!--			<label for="ts24h">24h</label><input disabled type="text" size="6" id="ts24h" style="text-align: right;"> ::
+			<label for="ts8h">8h bis 24h</label><input disabled type="text" size="6" id="ts8h" style="text-align: right;"> ::
+			<label for="pausch">Pauschbetrag Übernachtung</label><input disabled type="text" size="6" id="pausch" style="text-align: right;">-->
+	</fieldset>
+	<h2>Aufstellung</h2>
+	<fieldset id="Aufstellung">
+		<legend class="screen">Bitte trage jeden Reisetag ein.</legend>
+		<p class="screen">Bitte setze für jeden Tag, an dem dir im Rahmen der Reisekostenübernahme die entsprechende Mahlzeit gestellt wurde (z.B. Ü/F (Übernachtung/Frühstück), HP (Halbpension), Buffet bei Konferenz)) einen Haken an passender Stelle. Dein Anspruch für den jeweiligen Reisetag wird um den Anteil der jeweiligen Mahlzeit verringert. Konntest du privat übernachten, erhöht sich dein Anspruch für den Tag der jeweiligen privaten Übernachtung.</p>
+	</fieldset>
+	<div style="width: 100%; text-align:right; padding-right: 50px; font-weight:bold; font-size:90%;"><p>Anspruch Summe:<br> <span class="geld" id="Summe" style="margin-left: 2em; font-weight:bold; color:black; width:8em;"></span></p></div>
+	<div id="printcontainer_bottom"><input type="button" value="🖶  Anlage Verpflegungsmehraufwand drucken" id="print_bottom"></div>
+	<template id="neuerEintrag">
+		<fieldset class="eintrag">
+			<legend></legend>
+			<abbr title="Datum des Reisetages"><span style="width:8em;"></span></abbr>&emsp;<abbr title="Die reisende Person hat grundsätzlich Anspruch auf den für das jeweilige Reiseziel geltenden Tagessatz, wenn sie für jede Mahlzeit selber aufkommen muss. Es gilt der Tagessatz, der für die Dauer der Abwesenheit zutrifft."><span class="geld" style="width:8em;"></span></abbr>
+			<abbr title="Wurde ein Frühstück gestellt, verringert sich der Anspruch um 20%."><input type="checkbox"><label font-size="90%">-Frühstück<span class="screen"> (20%)</span></label></abbr>
+			<abbr title="Wurde ein Mittagessen gestellt, verringert sich der Anspruch um 40%."><input type="checkbox"><label font-size="90%">-Mittag<span class="screen"> (40%)</span></label></abbr>
+			<abbr title="Wurde ein Abendessen gestellt, verringert sich der Anspruch um 40%."><input type="checkbox"><label font-size="90%">-Abendessen<span class="screen"> (40%)</span></label></abbr>
+			<abbr title="Konnte die reisende Person privat übernachten, entsteht daraus ein zusätzlicher Anspruch."><input type="checkbox"><label font-size="90%">+Privat?</label></abbr>
+			<abbr title="Dieser Anspruch wurde für diesen Reisetag berechnet.">Anspruch: <span class="geld" style="width:8em; font-weight: bold;"></span></abbr>
+		</fieldset>
+	</template>
+	<template id="neuerTagessatz">
+		<option></option>
+	</template>
+	<footer>
+		<a href="mailto:wmde-it@wikimedia.de">Kontakt</a>
+		<p>© 2016 by Wikimedia Deutschland e.V.</p>
+		<address>Wikimedia Deutschland<br>
+Gesellschaft zur Förderung Freien Wissens e.V.<br>
+Postfach 61 03 49<br>
+10925 Berlin<br><br>
+
+http://wikimedia.de<br>
+Tel: 0 30/21 91 58 26-0<br>
+Fax: 0 30/21 91 58 26-9<br>
+E-Mail: info@wikimedia.de<br><br>
+
+IBAN DE05100205000003287300<br>
+BIC BFSWDE33BER<br>
+</address>
+	</footer>
+</body>
+</html>
